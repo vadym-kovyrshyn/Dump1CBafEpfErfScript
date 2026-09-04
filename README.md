@@ -2,9 +2,7 @@
 
 A small Windows helper that unpacks 1C/BAF external data processors (`.epf`) and reports (`.erf`) into plain files next to the original, and packs them back:
 
-`MyProcessor.epf` → `MyProcessor.epf__UnPacked\` → `MyProcessor_Packed.epf`
-
-The original `.epf` / `.erf` is never overwritten.
+`MyProcessor.epf` → `MyProcessor.epf__UnPacked\` → `MyProcessor_Packed.epf` (default)
 
 You need an installed 1C or BAF platform with `1cv8.exe` on the machine.
 
@@ -33,8 +31,9 @@ Pack:
 1. Select one or more `*__UnPacked` folders, or right-click empty space inside such a folder.
 2. Right-click → **1C Pack To File**.
 3. Pick the platform version when asked (press Esc to cancel).
+4. Choose whether to add `_Packed` to the output name: **Y** / Enter = yes (default), **N** = write `<Name>.epf` / `<Name>.erf`.
 
-Creates `<Name>_Packed.epf` or `<Name>_Packed.erf` next to the folder. If that packed file already exists, it is replaced. The original `.epf` / `.erf` is left unchanged.
+Default output is `<Name>_Packed.epf` or `<Name>_Packed.erf` next to the folder. With **N** the original file name is used (that file is overwritten if it exists). If the chosen output file already exists, it is replaced.
 
 You can also run from the command line:
 

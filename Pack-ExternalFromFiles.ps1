@@ -1,9 +1,9 @@
-# Pack selected *__UnPacked folders into sibling <Name>_Packed.epf/.erf
+# Pack selected *__UnPacked folders into sibling .epf/.erf
 # Usage:
 #   Pack-ExternalFromFiles.ps1 -RunBatch <dir1> [dir2] ...
 #   Pack-ExternalFromFiles.ps1 -Enqueue <dir>   (context menu; coalesces multi-select into one window)
 # Requires 1C/BAF platform. Creates a temporary file IB in %TEMP% and deletes it after pack.
-# Original .epf / .erf next to the folder is never overwritten.
+# Asks whether to add _Packed to the output name (Y/Enter = yes, N = write original name).
 # 1C messages are shown in this window (no persistent log files).
 
 [CmdletBinding()]
@@ -94,10 +94,43 @@ function Remove-TempFileInfobase {
     Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+function Read-PackedSuffixChoice {
+    Write-Host ""
+    Write-Host "Add _Packed suffix to the output file name?"
+    Write-Host "Y/y or Enter = yes (default), N/n = no, Esc = cancel"
+    Write-Host -NoNewline "> "
+
+    while ($true) {
+        $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+        if ($key.VirtualKeyCode -eq 27) {
+            Write-Host ""
+            Write-Host "Cancelled."
+            return $null
+        }
+
+        if ($key.VirtualKeyCode -eq 13) {
+            Write-Host "Y"
+            return $true
+        }
+
+        $ch = [string]$key.Character
+        if ($ch -eq "Y" -or $ch -eq "y") {
+            Write-Host "Y"
+            return $true
+        }
+        if ($ch -eq "N" -or $ch -eq "n") {
+            Write-Host "N"
+            return $false
+        }
+    }
+}
+
 function Get-PackedTargetFromFolder {
     param(
         [System.IO.DirectoryInfo]$Folder,
-        [string]$Suffix
+        [string]$Suffix,
+        [bool]$AddPackedSuffix = $true
     )
 
     $name = $Folder.Name
@@ -113,7 +146,11 @@ function Get-PackedTargetFromFolder {
     $ext = $ext.ToLowerInvariant()
 
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($originalName)
-    $outName = "{0}_Packed{1}" -f $stem, $ext
+    if ($AddPackedSuffix) {
+        $outName = "{0}_Packed{1}" -f $stem, $ext
+    } else {
+        $outName = "{0}{1}" -f $stem, $ext
+    }
     return [pscustomobject]@{
         OriginalName = $originalName
         Extension    = $ext
@@ -213,7 +250,18 @@ function Invoke-PackBatch {
             exit 0
         }
 
+        $addPackedSuffix = Read-PackedSuffixChoice
+        if ($null -eq $addPackedSuffix) {
+            Write-Host "Cancelled by user."
+            exit 0
+        }
+
         Write-Host "Platform: $OneC"
+        if ($addPackedSuffix) {
+            Write-Host "Output  : <Name>_Packed.epf/.erf"
+        } else {
+            Write-Host "Output  : <Name>.epf/.erf (no _Packed suffix)"
+        }
         Write-Host ("Folders : {0}" -f $Folders.Count)
         $ibPath = New-TempFileInfobase -OneC $OneC
 
@@ -222,7 +270,7 @@ function Invoke-PackBatch {
         foreach ($folderPath in $Folders) {
             $index++
             $folder = Get-Item -LiteralPath $folderPath
-            $target = Get-PackedTargetFromFolder -Folder $folder -Suffix $Suffix
+            $target = Get-PackedTargetFromFolder -Folder $folder -Suffix $Suffix -AddPackedSuffix $addPackedSuffix
             if (-not $target) {
                 Write-Warning ("Skip (not *.epf{0} / *.erf{0}): {1}" -f $Suffix, $folder.FullName)
                 $failed += $folder.FullName
