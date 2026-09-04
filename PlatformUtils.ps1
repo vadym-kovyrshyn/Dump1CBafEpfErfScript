@@ -226,22 +226,26 @@ function Resolve-1CPlatformForDump {
     return $selected
 }
 
-function Get-DumpEpfErfQueuePath {
-    return (Join-Path $env:TEMP "DumpEpfErf_file_queue.txt")
+function Get-EpfErfQueuePath {
+    param([string]$Prefix = "DumpEpfErf")
+    return (Join-Path $env:TEMP ($Prefix + "_file_queue.txt"))
 }
 
-function Add-DumpEpfErfQueueFiles {
-    param([string[]]$Files)
+function Add-EpfErfQueueFiles {
+    param(
+        [string[]]$Files,
+        [string]$Prefix = "DumpEpfErf"
+    )
 
     $mutex = $null
     $acquired = $false
     try {
-        $mutex = New-Object System.Threading.Mutex($false, "Global\DumpEpfErfQueueFile")
+        $mutex = New-Object System.Threading.Mutex($false, ("Global\{0}QueueFile" -f $Prefix))
         if (-not $mutex.WaitOne(30000)) {
-            throw "Timeout locking unpack queue."
+            throw ("Timeout locking {0} queue." -f $Prefix)
         }
         $acquired = $true
-        $path = Get-DumpEpfErfQueuePath
+        $path = Get-EpfErfQueuePath -Prefix $Prefix
         foreach ($f in $Files) {
             if ($f) {
                 Add-Content -LiteralPath $path -Value $f -Encoding UTF8
@@ -254,22 +258,26 @@ function Add-DumpEpfErfQueueFiles {
     }
 }
 
-function Read-DumpEpfErfQueueCount {
-    $path = Get-DumpEpfErfQueuePath
+function Read-EpfErfQueueCount {
+    param([string]$Prefix = "DumpEpfErf")
+
+    $path = Get-EpfErfQueuePath -Prefix $Prefix
     if (-not (Test-Path -LiteralPath $path)) { return 0 }
     return @(Get-Content -LiteralPath $path -ErrorAction SilentlyContinue | Where-Object { $_ -and $_.Trim() }).Count
 }
 
-function Get-DumpEpfErfQueueFilesAndClear {
+function Get-EpfErfQueueFilesAndClear {
+    param([string]$Prefix = "DumpEpfErf")
+
     $mutex = $null
     $acquired = $false
     try {
-        $mutex = New-Object System.Threading.Mutex($false, "Global\DumpEpfErfQueueFile")
+        $mutex = New-Object System.Threading.Mutex($false, ("Global\{0}QueueFile" -f $Prefix))
         if (-not $mutex.WaitOne(30000)) {
-            throw "Timeout locking unpack queue."
+            throw ("Timeout locking {0} queue." -f $Prefix)
         }
         $acquired = $true
-        $path = Get-DumpEpfErfQueuePath
+        $path = Get-EpfErfQueuePath -Prefix $Prefix
         $files = @()
         if (Test-Path -LiteralPath $path) {
             $files = @(
@@ -288,17 +296,18 @@ function Get-DumpEpfErfQueueFilesAndClear {
     }
 }
 
-function Wait-DumpEpfErfQueueStable {
+function Wait-EpfErfQueueStable {
     param(
         [int]$PollMs = 200,
-        [int]$StableRounds = 4
+        [int]$StableRounds = 4,
+        [string]$Prefix = "DumpEpfErf"
     )
 
     $last = -1
     $stable = 0
     while ($stable -lt $StableRounds) {
         Start-Sleep -Milliseconds $PollMs
-        $count = Read-DumpEpfErfQueueCount
+        $count = Read-EpfErfQueueCount -Prefix $Prefix
         if ($count -ne $last) {
             $last = $count
             $stable = 0
@@ -306,5 +315,43 @@ function Wait-DumpEpfErfQueueStable {
             $stable++
         }
     }
+}
+
+function Get-DumpEpfErfQueuePath { Get-EpfErfQueuePath -Prefix "DumpEpfErf" }
+
+function Add-DumpEpfErfQueueFiles {
+    param([string[]]$Files)
+    Add-EpfErfQueueFiles -Files $Files -Prefix "DumpEpfErf"
+}
+
+function Read-DumpEpfErfQueueCount { Read-EpfErfQueueCount -Prefix "DumpEpfErf" }
+
+function Get-DumpEpfErfQueueFilesAndClear { Get-EpfErfQueueFilesAndClear -Prefix "DumpEpfErf" }
+
+function Wait-DumpEpfErfQueueStable {
+    param(
+        [int]$PollMs = 200,
+        [int]$StableRounds = 4
+    )
+    Wait-EpfErfQueueStable -PollMs $PollMs -StableRounds $StableRounds -Prefix "DumpEpfErf"
+}
+
+function Get-PackEpfErfQueuePath { Get-EpfErfQueuePath -Prefix "PackEpfErf" }
+
+function Add-PackEpfErfQueueFolders {
+    param([string[]]$Folders)
+    Add-EpfErfQueueFiles -Files $Folders -Prefix "PackEpfErf"
+}
+
+function Read-PackEpfErfQueueCount { Read-EpfErfQueueCount -Prefix "PackEpfErf" }
+
+function Get-PackEpfErfQueueFoldersAndClear { Get-EpfErfQueueFilesAndClear -Prefix "PackEpfErf" }
+
+function Wait-PackEpfErfQueueStable {
+    param(
+        [int]$PollMs = 200,
+        [int]$StableRounds = 4
+    )
+    Wait-EpfErfQueueStable -PollMs $PollMs -StableRounds $StableRounds -Prefix "PackEpfErf"
 }
 

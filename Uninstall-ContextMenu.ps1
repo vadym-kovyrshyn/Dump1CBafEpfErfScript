@@ -1,4 +1,4 @@
-# Removes Explorer context menu for .epf / .erf.
+# Removes Explorer context menu for unpack (.epf/.erf) and pack (*__UnPacked folders).
 $ErrorActionPreference = "Continue"
 
 $ToolDir = $PSScriptRoot
@@ -10,7 +10,10 @@ if (-not $ToolDir) {
 
 $keys = @(
     "HKCU:\Software\Classes\SystemFileAssociations\.epf\shell\DumpEpfErfToUnPacked",
-    "HKCU:\Software\Classes\SystemFileAssociations\.erf\shell\DumpEpfErfToUnPacked"
+    "HKCU:\Software\Classes\SystemFileAssociations\.erf\shell\DumpEpfErfToUnPacked",
+    "HKCU:\Software\Classes\Directory\shell\PackEpfErfFromUnPacked",
+    "HKCU:\Software\Classes\Folder\shell\PackEpfErfFromUnPacked",
+    "HKCU:\Software\Classes\Directory\Background\shell\PackEpfErfFromUnPacked"
 )
 
 foreach ($key in $keys) {
